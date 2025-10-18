@@ -12,3 +12,6 @@ pip-log.txt
 # Flask
 instance/
 .webassets-cache
+
+.gemini/
+gha-creds-*.json
