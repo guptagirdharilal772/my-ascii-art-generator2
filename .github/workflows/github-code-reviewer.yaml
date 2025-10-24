@@ -10,7 +10,7 @@ on:
     types: [ opened, synchronize, reopened, closed ]
     branches:
       #- main
-       - 'releases/**'
+       - '**'
 
 jobs:
   gemini_review:
