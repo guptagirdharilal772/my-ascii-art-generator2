@@ -31,9 +31,9 @@ jobs:
 
       - name: Authenticate Gemini CLI
         env:
-          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+         GEMINI_API_KEY : ${{ secrets.GEMINI_API_KEY }}
         run: |
-          echo "export GOOGLE_API_KEY=${GOOGLE_API_KEY}" >> $GITHUB_ENV
+          echo "export GEMINI_API_KEY=${GEMINI_API_KEY}" >> $GITHUB_ENV
           echo "🔐 Gemini CLI authenticated"
 
       - name: Generate Git Diff
@@ -102,7 +102,7 @@ jobs:
       - name: Run Gemini Review
         id: gemini
         env:
-          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           echo "🧠 Running Gemini review..."
           DIFF_CONTENT=$(sed -n '1,20000p' diff.txt) || DIFF_CONTENT=""
