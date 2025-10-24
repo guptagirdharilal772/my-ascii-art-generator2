@@ -44,8 +44,8 @@ jobs:
             git fetch origin ${{ github.event.pull_request.base.ref }}
             git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > diff.txt || true
           else
-            git fetch origin main
-            git diff origin/main...HEAD > diff.txt || true
+            git fetch origin main || git fetch origin maater
+            git diff origin/main...HEAD > diff.txt ||  git diff origin/main...HEAD > diff.txt  || true
           fi
           echo "📄 Diff saved to diff.txt (preview up to 200 lines):"
           head -n 200 diff.txt || echo "(no diff)"
