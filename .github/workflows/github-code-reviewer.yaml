@@ -79,39 +79,55 @@ jobs:
          echo "📁 Collecting new files..."
          NEW_FILES=""
 
-         # Determine base ref depending on event type
+         # Ensure full git history is available
+         git fetch --unshallow || true
+         git fetch origin --tags
+
+         # Detect base and head branches dynamically
          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_REF="${{ github.event.pull_request.base.ref }}"
-            HEAD_REF="${{ github.event.pull_request.head.ref }}"
-            echo "Detected Pull Request from '$HEAD_REF' to '$BASE_REF'"
-            git fetch origin "$BASE_REF"
-            FILES=$(git diff --diff-filter=A --name-only origin/"$BASE_REF"...HEAD)
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          HEAD_REF="${{ github.event.pull_request.head.ref }}"
+          echo "Detected Pull Request from '$HEAD_REF' to '$BASE_REF'"
+
+         # Fetch both base and head branches explicitly
+          git fetch origin "$BASE_REF" "$HEAD_REF"
+          FILES=$(git diff --diff-filter=A --name-only origin/"$BASE_REF"...origin/"$HEAD_REF")
          else
-          # For push events, find default branch dynamically
+         # Handle push events
           DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
           echo "Detected push event — comparing to default branch '$DEFAULT_BRANCH'"
-          git fetch origin "$DEFAULT_BRANCH"
-          FILES=$(git diff --diff-filter=A --name-only origin/"$DEFAULT_BRANCH"...HEAD)
-         fi
-         if [ -z "$FILES" ]; then
-          echo "No new files detected."
-         else
-          echo "New files detected:"
-          echo "$FILES"
+
+           git fetch origin "$DEFAULT_BRANCH"
+           FILES=$(git diff --diff-filter=A --name-only origin/"$DEFAULT_BRANCH"...HEAD)
          fi
 
+         if [ -z "$FILES" ]; then
+           echo "⚠️ No new files detected."
+         else
+           echo "✅ New files detected:"
+           echo "$FILES"
+         fi
+
+         # Collect relevant file contents
          for file in $FILES; do
            case "$file" in
-            *.py|*.yaml|*.yml|*.json|*.tf|*.sh)
-            echo "Including $file"
-            NEW_FILES="$NEW_FILES\n\n===== FILE: $file =====\n$(cat $file)"
-            ;;
+           *.py|*.yaml|*.yml|*.json|*.tf|*.sh)
+           echo "Including $file"
+          # Use safe reading with fallback if file not found
+          if [ -f "$file" ]; then
+            CONTENT=$(cat "$file")
+            NEW_FILES="${NEW_FILES}\n\n===== FILE: $file =====\n${CONTENT}"
+          fi
+          ;;
           esac
          done
 
+         # Export collected file content to environment
          echo "NEW_FILES<<EOF" >> $GITHUB_ENV
          echo -e "$NEW_FILES" >> $GITHUB_ENV
          echo "EOF" >> $GITHUB_ENV
+
+
 
 
       - name: Run Gemini Review
