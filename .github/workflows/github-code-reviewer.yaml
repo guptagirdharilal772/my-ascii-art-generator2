@@ -76,28 +76,34 @@ jobs:
       - name: Collect New Files for Review
         id: new_files
         run: |
-          echo "📁 Collecting new files..."
-          NEW_FILES=""
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # List added files in PR
-            FILES=$(git diff --diff-filter=A --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)
-          else
-            # List added files in push
-            FILES=$(git diff --diff-filter=A --name-only origin/master...HEAD) 
-          fi
+         echo "📁 Collecting new files..."
+         NEW_FILES=""
 
-          for file in $FILES; do
-            case "$file" in
-              *.py|*.yaml|*.yml|*.json|*.tf|*.sh)
-                echo "Including $file"
-                NEW_FILES="$NEW_FILES\n\n===== FILE: $file =====\n$(cat $file)"
-                ;;
-            esac
-          done
+         # Determine base ref depending on event type
+         if [ "${{ github.event_name }}" = "pull_request" ]; then
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          git fetch origin "$BASE_REF"
+          FILES=$(git diff --diff-filter=A --name-only origin/"$BASE_REF"...HEAD)
+         else
+          # For push events, find default branch dynamically
+          DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+          git fetch origin "$DEFAULT_BRANCH"
+          FILES=$(git diff --diff-filter=A --name-only origin/"$DEFAULT_BRANCH"...HEAD)
+         fi
 
-          echo "NEW_FILES<<EOF" >> $GITHUB_ENV
-          echo -e "$NEW_FILES" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+         for file in $FILES; do
+           case "$file" in
+           *.py|*.yaml|*.yml|*.json|*.tf|*.sh)
+            echo "Including $file"
+            NEW_FILES="$NEW_FILES\n\n===== FILE: $file =====\n$(cat $file)"
+            ;;
+          esac
+         done
+
+         echo "NEW_FILES<<EOF" >> $GITHUB_ENV
+         echo -e "$NEW_FILES" >> $GITHUB_ENV
+         echo "EOF" >> $GITHUB_ENV
+
 
       - name: Run Gemini Review
         id: gemini
