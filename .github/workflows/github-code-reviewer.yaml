@@ -81,14 +81,23 @@ jobs:
 
          # Determine base ref depending on event type
          if [ "${{ github.event_name }}" = "pull_request" ]; then
-          BASE_REF="${{ github.event.pull_request.base.ref }}"
-          git fetch origin "$BASE_REF"
-          FILES=$(git diff --diff-filter=A --name-only origin/"$BASE_REF"...HEAD)
+            BASE_REF="${{ github.event.pull_request.base.ref }}"
+            HEAD_REF="${{ github.event.pull_request.head.ref }}"
+            echo "Detected Pull Request from '$HEAD_REF' to '$BASE_REF'"
+            git fetch origin "$BASE_REF"
+            FILES=$(git diff --diff-filter=A --name-only origin/"$BASE_REF"...HEAD)
          else
           # For push events, find default branch dynamically
-          DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+          DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
+          echo "Detected push event — comparing to default branch '$DEFAULT_BRANCH'"
           git fetch origin "$DEFAULT_BRANCH"
           FILES=$(git diff --diff-filter=A --name-only origin/"$DEFAULT_BRANCH"...HEAD)
+         fi
+         if [ -z "$FILES" ]; then
+          echo "No new files detected."
+         else
+          echo "New files detected:"
+          echo "$FILES"
          fi
 
          for file in $FILES; do
