@@ -3,6 +3,7 @@ from pyfiglet import Figlet
 
 app = Flask(__name__)
 
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     ascii_art = None
