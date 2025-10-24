@@ -8,9 +8,9 @@ on:
       - 'feature/**'
   pull_request:
     types: [ opened, synchronize, reopened, closed ]
-    branches:
-      - main
-      - 'feature/**'
+    #branches:
+      #- main
+      #- 'feature/**'
 
 jobs:
   gemini_review:
