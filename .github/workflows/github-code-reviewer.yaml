@@ -73,6 +73,31 @@ jobs:
             echo "Changes detected, continuing with Gemini review."
             echo "bypass_comment=false" >> $GITHUB_ENV
           fi
+      - name: Collect New Files for Review
+        id: new_files
+        run: |
+          echo "📁 Collecting new files..."
+          NEW_FILES=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # List added files in PR
+            FILES=$(git diff --diff-filter=A --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)
+          else
+            # List added files in push
+            FILES=$(git diff --diff-filter=A --name-only origin/main...HEAD || git diff --diff-filter=A --name-only origin/master...HEAD)
+          fi
+
+          for file in $FILES; do
+            case "$file" in
+              *.py|*.yaml|*.yml|*.json|*.tf|*.sh)
+                echo "Including $file"
+                NEW_FILES="$NEW_FILES\n\n===== FILE: $file =====\n$(cat $file)"
+                ;;
+            esac
+          done
+
+          echo "NEW_FILES<<EOF" >> $GITHUB_ENV
+          echo -e "$NEW_FILES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Run Gemini Review
         id: gemini
@@ -81,7 +106,8 @@ jobs:
         run: |
           echo "🧠 Running Gemini review..."
           DIFF_CONTENT=$(sed -n '1,20000p' diff.txt) || DIFF_CONTENT=""
-          PROMPT="You are a world-class autonomous code reviewer. Analyze the following Git diff. Identify syntax errors, security vulnerabilities, and bad practices. Provide feedback in Markdown with severity indicators (🔴 Critical, 🟠 High, 🟡 Medium, 🟢 Low). Return concise, actionable suggestions.\n\nGit Diff:\n$DIFF_CONTENT"
+          NEW_FILES_CONTENT="${{ env.NEW_FILES }}" || NEW_FILES_CONTENT=""
+          PROMPT="You are a world-class autonomous code reviewer. Analyze the following Git diff and new files. Identify syntax errors, security vulnerabilities, and configuration mistakes. Provide feedback in Markdown with severity indicators (🔴 Critical, 🟠 High, 🟡 Medium, 🟢 Low). Return concise, actionable suggestions.\n\nGit Diff:\n$DIFF_CONTENT\n\nNew Files:\n$NEW_FILES_CONTENT"
 
           # Send prompt to Gemini CLI
           gemini -p "$PROMPT" > review_output.txt || echo "⚠️ Gemini CLI failed to produce output"
