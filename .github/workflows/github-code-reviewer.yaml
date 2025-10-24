@@ -44,8 +44,8 @@ jobs:
             git fetch origin ${{ github.event.pull_request.base.ref }}
             git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > diff.txt || true
           else
-            git fetch origin main || git fetch origin master
-            git diff origin/main...HEAD > diff.txt ||  git diff origin/master...HEAD > diff.txt  || true
+            git fetch origin master 
+            git diff origin/master...HEAD > diff.txt  || true
           fi
           echo "📄 Diff saved to diff.txt (preview up to 200 lines):"
           head -n 200 diff.txt || echo "(no diff)"
@@ -83,7 +83,7 @@ jobs:
             FILES=$(git diff --diff-filter=A --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)
           else
             # List added files in push
-            FILES=$(git diff --diff-filter=A --name-only origin/main...HEAD || git diff --diff-filter=A --name-only origin/master...HEAD)
+            FILES=$(git diff --diff-filter=A --name-only origin/master...HEAD) 
           fi
 
           for file in $FILES; do
