@@ -93,7 +93,7 @@ jobs:
 
          for file in $FILES; do
            case "$file" in
-           *.py|*.yaml|*.yml|*.json|*.tf|*.sh)
+            *.py|*.yaml|*.yml|*.json|*.tf|*.sh)
             echo "Including $file"
             NEW_FILES="$NEW_FILES\n\n===== FILE: $file =====\n$(cat $file)"
             ;;
