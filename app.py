@@ -4,7 +4,7 @@ from pyfiglet import Figlet
 app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
-def index():
+#def index():
     ascii_art = None
     if request.method == 'POST':
         text = request.form.get('text')
