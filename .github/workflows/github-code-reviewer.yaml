@@ -1,0 +1,106 @@
+name: Gemini AI Code Review & Merge Gate
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - 'feature/**'
+
+jobs:
+  gemini_review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python & Install Gemini CLI
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install -U google-generativeai
+          echo "✅ Gemini CLI installed"
+
+      - name: Authenticate Gemini CLI
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          echo "export GOOGLE_API_KEY=${GOOGLE_API_KEY}" >> $GITHUB_ENV
+          echo "🔐 Gemini CLI authenticated"
+
+      - name: Generate Git Diff
+        id: diff
+        run: |
+          echo "🔍 Generating diff..."
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin ${{ github.event.pull_request.base.ref }}
+            git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > diff.txt
+          else
+            git fetch origin main
+            git diff origin/main...HEAD > diff.txt
+          fi
+
+          echo "📄 Preview of diff:"
+          head -n 30 diff.txt || echo "No diff found"
+
+      - name: Run Gemini Review
+        id: gemini
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          DIFF_CONTENT=$(cat diff.txt)
+          
+          PROMPT="You are a world-class autonomous code reviewer. Analyze the following Git diff. Identify **syntax errors**, **security vulnerabilities**, and **bad practices**.
+          Provide feedback in Markdown with severity indicators:
+          🔴 Critical — must fix before merge  
+          🟠 High — fix soon  
+          🟡 Medium — optional improvements  
+          🟢 Low — minor or stylistic suggestions  
+          Respond clearly and concisely.
+
+          Git Diff:
+          $DIFF_CONTENT"
+
+          echo "🧠 Sending diff to Gemini for review..."
+          gemini -p "$PROMPT" > review_output.txt || echo "⚠️ Gemini failed"
+
+          echo "✅ Review complete"
+          echo "REVIEW_OUTPUT<<EOF" >> $GITHUB_ENV
+          cat review_output.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Post Review to Pull Request
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: "🤖 Gemini AI Code Review"
+          message: |
+            ## 🔍 Automated Gemini Review
+            ${{ env.REVIEW_OUTPUT }}
+
+      - name: Check for Critical Issues (Merge Gate)
+        id: gate
+        run: |
+          echo "🔎 Checking Gemini output for 🔴 Critical issues..."
+          echo "${{ env.REVIEW_OUTPUT }}" > review.txt
+          if grep -q "🔴" review.txt; then
+            echo "❌ Critical issues found. Blocking merge!"
+            echo "critical_found=true" >> $GITHUB_ENV
+            exit 1
+          else
+            echo "✅ No critical issues detected."
+            echo "critical_found=false" >> $GITHUB_ENV
+          fi
+
+      - name: Log Review Summary
+        if: always()
+        run: |
+          echo "===== Gemini AI Review Summary ====="
+          echo "${{ env.REVIEW_OUTPUT }}"
+          echo "Critical found: ${{ env.critical_found }}"
