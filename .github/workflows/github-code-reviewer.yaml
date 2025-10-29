@@ -40,15 +40,31 @@ jobs:
         id: diff
         run: |
           echo "🔍 Generating diff..."
+          git fetch --unshallow || true
+          git fetch origin --tags
+
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin ${{ github.event.pull_request.base.ref }}
-            git diff origin/${{ github.event.pull_request.base.ref }}...HEAD > diff.txt || true
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            echo "Detected PR diff range: $BASE_SHA...$HEAD_SHA"
+            git diff --diff-filter=ACMRTUXB --name-status "$BASE_SHA" "$HEAD_SHA" > diff.txt
+            git diff "$BASE_SHA" "$HEAD_SHA" > full_diff.txt
           else
-            git fetch origin master 
-            git diff origin/master...HEAD > diff.txt  || true
+            DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
+            echo "Detected push event — comparing to '$DEFAULT_BRANCH'"
+            git fetch origin "$DEFAULT_BRANCH"
+            git diff --diff-filter=ACMRTUXB --name-status origin/"$DEFAULT_BRANCH"...HEAD > diff.txt
+            git diff origin/"$DEFAULT_BRANCH"...HEAD > full_diff.txt
           fi
-          echo "📄 Diff saved to diff.txt (preview up to 200 lines):"
-          head -n 200 diff.txt || echo "(no diff)"
+
+          echo "📄 Diff file preview:"
+          head -n 40 diff.txt || echo "(empty)"
+
+          # Save diff for Gemini
+          echo "DIFF_CONTENT<<EOF" >> $GITHUB_ENV
+          head -n 20000 full_diff.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
 
       - name: Check for No Changes and Bypass
         id: bypass
