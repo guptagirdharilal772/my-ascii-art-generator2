@@ -49,6 +49,7 @@ jobs:
           fi
           echo "📄 Diff saved to diff.txt (preview up to 200 lines):"
           head -n 200 diff.txt || echo "(no diff)"
+          cat diff.txt
 
       - name: Check for No Changes and Bypass
         id: bypass
